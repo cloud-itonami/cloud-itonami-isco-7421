@@ -1,0 +1,44 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:physics` runs it.
+;;
+;; README "Robotics premise": a service scheduling/logistics coordination
+;; robot handles technician scheduling, service-call/parts-usage records and
+;; electronics-parts supply orders for an electronics mechanics and servicers
+;; crew (ISCO 7421). Its physical work: bringing returned devices from
+;; goods-in to the repair benches, lifting a device onto the bench, and the
+;; board preheat before a component is reworked.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isco-7421"
+ :cases
+ [{:id :returns-to-benches
+   :kind :transport
+   :procedure "cart brings a tote of returned devices from goods-in to the repair benches"
+   :params {:mass-kg 40.0 :payload-kg 20.0 :v-max-mps 1.0 :a-max-mps2 0.4
+            :brake-decel-mps2 0.6 :drive-force-n 90.0 :crr 0.015
+            :cog-height-m 0.55 :support-half-length-m 0.25 :max-time-s 1200.0}
+   :sweep {:param :distance-m :values [10.0 20.0 35.0 50.0 80.0]}
+   :quantity :cycle-time-s
+   :limit {:max 45.0 :basis "estimate: one goods-in-to-bench leg per repair ticket"}
+   :boundary {:lo 5.0 :hi 150.0}}
+  {:id :device-onto-bench
+   :kind :manipulator
+   :procedure "arm lifts a returned device (monitor, amplifier, set-top box) from the tote onto the ESD bench"
+   :params {:l1-m 0.50 :l2-m 0.45 :m1-kg 5.0 :m2-kg 4.0
+            :from [0.45 0.05] :to [0.70 0.35] :duration-s 2.5 :steps 500}
+   :sweep {:param :payload-kg :values [0.5 2.0 4.0 7.0 10.0]}
+   :quantity :peak-tau1-nm
+   :limit {:max 60.0 :basis "estimate: continuous shoulder torque of a light collaborative arm (~5 kg class)"}
+   :boundary {:lo 0.1 :hi 30.0}}
+  {:id :rework-board-preheat
+   :kind :thermal
+   :procedure "an FR-4 board on the rework station's bottom preheater (hot-air 250 C) until its top side reaches 150 C"
+   :params {:thickness-m 0.0016 :conductivity-w-mk 0.30 :density-kg-m3 1850.0 :specific-heat-j-kgk 1100.0
+            :t0-c 25.0 :t-hot-c 250.0 :h-front-w-m2k 60.0 :t-back-ambient-c 25.0 :h-back-w-m2k 10.0
+            :threshold-c 150.0 :duration-s 900.0 :nodes 9}
+   :sweep {:param :thickness-m :values [0.0008 0.0016 0.0024 0.0032 0.0048]}
+   :quantity :time-to-threshold-s
+   :limit {:max 120.0 :basis "estimate: two-minute preheat budget; the solder-paste / component maker's reflow profile is the source to cite; copper planes are not modelled"}
+   :boundary {:lo 0.0004 :hi 0.008}}]}
